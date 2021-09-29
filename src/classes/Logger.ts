@@ -1,3 +1,16 @@
+/* ==== Class ============================================================================================================================= */
+export class Logger {
+    public static debug = (text: string): void => this.print("DEBUG", "\x1b[37m", text);
+    public static log = (text: string): void => this.print("LOG", "\x1b[36m", text);
+    public static info = (text: string): void => this.print("INFO", "\x1b[32m", text);
+    public static warn = (text: string): void => this.print("WARN", "\x1b[33m", text);
+    public static error = (text: string): void => this.print("ERROR", "\x1b[31m", text);
+
+    private static RESET_COLOR = "\x1b[0m";
+    private static print = (level: string, color: string, text: string): void =>
+        console.log(`[\x1b[90m${new Date().toLocaleString()}${this.RESET_COLOR}] [${color}${level}${this.RESET_COLOR}] ${text}`);
+}
+
 /*
     Bright: "\x1b[1m",
     Dim: "\x1b[2m",
@@ -5,6 +18,13 @@
     Blink: "\x1b[5m",
     Reverse: "\x1b[7m",
     Hidden: "\x1b[8m",
+    Reset: "\x1b[0m",       // Reset coloured text
+
+    FgRed: "\x1b[31m",
+    FgGreen: "\x1b[32m",
+    FgYellow: "\x1b[33m",
+    FgCyan: "\x1b[36m",
+    FgWhite: "\x1b[37m",
 
 "\x1b[NUMEROm"
 FG  BG
@@ -26,28 +46,3 @@ FG  BG
 96	106	Bright Cyan
 97	107	Bright White
 */
-
-const COLORS = {
-    Reset: "\x1b[0m",       // Reset coloured text
-
-    FgRed: "\x1b[31m",
-    FgGreen: "\x1b[32m",
-    FgYellow: "\x1b[33m",
-    FgCyan: "\x1b[36m",
-    FgWhite: "\x1b[37m",
-}
-
-export class Logger {
-    static debug = (text: string): void => this.print("DEBUG", COLORS.FgWhite, text);
-
-    static log = (text: string): void => this.print("LOG", COLORS.FgCyan, text);
-
-    static info = (text: string): void => this.print("INFO", COLORS.FgGreen, text);
-
-    static warn = (text: string): void => this.print("WARN", COLORS.FgYellow, text);
-
-    static error = (text: string): void => this.print("ERROR", COLORS.FgRed, text);
-
-    private static print = (level: string, color: string, text: string): void =>
-        console.log(`[${new Date().toLocaleString()}] [${color}${level}${COLORS.Reset}] ${text}`);
-}

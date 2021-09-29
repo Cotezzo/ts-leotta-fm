@@ -1,7 +1,5 @@
-import { ClientEvents } from "discord.js";
-import { LeottaFM } from "../classes/LeottaFM";
-
+/* ==== Interfaces ======================================================================================================================== */
 export interface Event {
     name: string;
-    fn: (LeottaFM: LeottaFM, ...args: any[]) => void;
+    fn: (...args: any[]) => void;
 }

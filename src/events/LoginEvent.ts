@@ -1,9 +1,15 @@
+/* ==== Imports =========================================================================================================================== */
+import { LeottaFMIstance } from "..";
+
+import { Logger } from "../classes/Logger";
+
 import { Event } from "../interfaces/Event"
 
+/* ==== Events ============================================================================================================================ */
 export const loginEvent: Event = {
     name: "ready",
-    fn: (LeottaFM) => {
-        LeottaFM.user.setPresence({ activities: [{ name: "LeottaFM", type: "LISTENING" }], status: 'idle' });
-        console.log("Bot successfully started and listening. ");
+    fn: () => {
+        LeottaFMIstance.user.setPresence({ activities: [{ name: "LeottaFM", type: "LISTENING" }], status: 'idle' });
+        Logger.log("Bot successfully started");
     }
 }
