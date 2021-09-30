@@ -1,3 +1,4 @@
+/* ==== Function ========================================================================================================================== */
 export function applyAlias(obj: object): void {
     for(const key of Object.keys(obj)){         // For every property (every command)
         const subkeys = key.split(/,\s?/);      // Get aliases (if any)

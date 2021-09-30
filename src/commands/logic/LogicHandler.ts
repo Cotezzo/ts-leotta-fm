@@ -1,6 +1,8 @@
 /* ==== Imports =========================================================================================================================== */
-import { ColorResolvable, MessageEmbed } from "discord.js";
+import { ButtonInteraction, ColorResolvable, CommandInteraction, Message, MessageEmbed } from "discord.js";
 import { LeottaFMIstance } from "../../";
+import { Logger } from "../../classes/Logger";
+import { RadioPlayer, stationsPool } from "../../classes/RadioPlayer";
 
 import { Command, Commands } from "../../interfaces/CommandLogic";
 
@@ -33,7 +35,7 @@ const logicHandler: Commands<Command> = {
         ] } }
     },
     help: {
-        name: "help", category: "Information", description: "Shows the list of all commands. ",
+        name: "help", category: "Information", description: "Shows the list of all commands",
         fn: (cmdName: string) => {
             const embed = new MessageEmbed().setColor(process.env.embedColor as ColorResolvable);
 
@@ -54,37 +56,71 @@ const logicHandler: Commands<Command> = {
     },
 
     /* ==== RADIO ========== */
-    /*
-    // Music
-    "p, play": {
-        name: "play", category: "Music", description: "Plays a song in your voice channel, loading the url or searching on YouTube. ", aliases: "p",
-        fn: (risp: Message | CommandInteraction, url: string) => play(risp, url)
+    "l, list, stations": {
+        name: "stations", category: "Radio", description: "Lists all the available stations that can be played with the command 'station'", aliases: "l, list",
+        fn: () => {
+            const stations = Object.keys(stationsPool);
+            
+            let text = "```swift\n"
+            for(let i = 0; i < stations.length; i+= 3)
+                text += fill15(stations[i] ?? "") + " " + fill15(stations[i+1] ?? "") + " " + fill15(stations[i+2] ?? "") + "\n";
+            return text + "```";
+        }
     },
-    "clear, stop, leave": {
-        name: "clear", category: "Music", description: "Cleares the music queue and kicks the bot from the voice channel. ",
-        fn: (risp: Message | CommandInteraction) => clear(risp)
+
+    "s, station": {
+        name: "station", category: "Radio", description: "LeottaFM will enter your voice channel and play your favourite radio station", aliases: "s",
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, stationName: string, UUID?: number): any =>
+            getOrCreateRadioPlayer(risp.guildId)?.checkUUID(UUID)?.playStation(risp, stationName)
     },
+    "fuckoff, clear, stop, l, leave": {
+        name: "stop", category: "Radio", description: "Kicks the bot out from the voice channel",
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, UUID?: number): any => {
+            getRadioPlayer(risp.guildId)?.checkUUID(UUID)?.reset();
+            delete radioPlayersMap[risp.guildId];
+        }
+    },
+
     bind: {
-        name: "bind", category: "Music", description: "Binds the music bot to the current channel. ",
-        fn: (risp: Message | CommandInteraction) => bind(risp)
+        name: "bind", category: "Radio", description: "Binds the bot to the current text channel",
+        fn: (risp: Message | CommandInteraction): any =>
+            getRadioPlayer(risp.guildId)?.updateTextChannel(risp.channel)
     },
     "np, nowplaying": {
-        name: "nowplaying", category: "Music", description: "Shows informations about the current song. ", aliases: "np",
-        fn: (risp: Message | CommandInteraction) => nowplaying(risp)
+        name: "nowplaying", category: "Radio", description: "Shows informations about the current station", aliases: "np",
+        fn: (risp: Message | CommandInteraction): any =>
+            getRadioPlayer(risp.guildId)?.resendCurrentRadioDynamicMessage()
     },
     "v, volume": {
-        name: "volume", category: "Music", description: "Changes the volume of the music. Default: 1. ", aliases: "v",
-        fn: (risp: Message | CommandInteraction, volum: string) => {
-            if(!/[0-9]{0,2}(\.[0-9])?/.test(volum)) return;
-            volume(risp, parseFloat(volum))
+        name: "volume", category: "Radio", description: "Changes the volume of the radio [Default: 1]", aliases: "v",
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, volume: string): any => {
+            if(!/[0-9]{0,2}(\.[0-9])?/.test(volume)) return;
+            getRadioPlayer(risp.guildId)?.setVolume(parseFloat(volume));
         }
     }
-    */
 };
+
+// Utility for fm stations
+const fill15 = (str: string): string => str + " ".repeat(15 - str.length)
+
+/* ==== Music Logic ======================================================================================================================= */
+interface RadioPlayersMap<RadioPlayer> { [serverId: string]: RadioPlayer; }
+const radioPlayersMap: RadioPlayersMap<RadioPlayer> = {};
+
+const getRadioPlayer = (guildId: string): RadioPlayer => radioPlayersMap[guildId];
+
+const getOrCreateRadioPlayer = (guildId: string): RadioPlayer => {
+    if(!radioPlayersMap[guildId])
+        radioPlayersMap[guildId] = new RadioPlayer();
+
+    return radioPlayersMap[guildId];
+}
+
 
 /* ==== Post Processing =================================================================================================================== */
 interface categories { [index: string]: string[] }
 const categories: categories = {};
+
 for(const { name, category } of Object.values(logicHandler)){
     if(category)
         if(categories[category]) categories[category].push(name);

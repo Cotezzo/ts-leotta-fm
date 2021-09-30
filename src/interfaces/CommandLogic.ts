@@ -1,6 +1,6 @@
 /* ==== Interfaces ======================================================================================================================== */
 export interface Command {
-	fn(...args: any[]): any;                    // Logic associated with the command
+	fn(...args: any[]): any;                // Logic associated with the command
 
     name: string;
     aliases?: string;
@@ -13,5 +13,5 @@ export interface Command {
 }
 
 export interface Commands<Command> {
-    [command: string]: Command;                 // Index = Command name
+    [command: string]: Command;
 };

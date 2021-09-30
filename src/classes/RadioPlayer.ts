@@ -1,30 +1,39 @@
+/* ==== Imports =========================================================================================================================== */
 import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
 import { AudioPlayer, AudioPlayerStatus, AudioResource, createAudioPlayer, createAudioResource, joinVoiceChannel, StreamType } from "@discordjs/voice";
+
+import { Station } from "../interfaces/Station";
+
+import { DynamicMessage } from "./DynamicMessage";
+import { ClassLogger } from "./Logger";
+import { Sub } from "./Sub";
 
 // import ytdl from "ytdl-core";
 // import ytdl from "ytdl-core-discord";
 
 import axios from "axios";
 
-import { Sub } from "./Sub";
-
-import { DynamicMessage } from "./DynamicMessage";
-import { ClassLogger } from "./Logger";
-
-
 // const youtubePlaylist = /^https:\/\/(www.)?youtube.com\/playlist\?list=([0-9a-zA-Z_-]{18,34})$/;  //18
 // const youtubeVideo = /^https:\/\/((www.youtube.com\/watch\?v=)|(youtu.be\/))+.*/;
 
 const logger = new ClassLogger("RadioPlayer");
 
-export interface Station {
-    name: string;
-    requestor: number;
-    thumbnail: string;
-    stream: any;
+/* ==== Class ============================================================================================================================= */
+interface StationsPool<Station> { [stationName: string]: Station };
+export const stationsPool: StationsPool<Station> = {};
+export const populateStationsPool = async (): Promise<void> => {
+    logger.info("Populating stationsPool...");
+    await axios.get("https://somafm.com/").then(res => res.data).then(data => {
+
+        for(const stationRaw of data.match(/<a href="\/.+\/" >\n.*<img src="\/img\/.*" alt/g)){
+            const name = stationRaw.split(/\//g, 2)[1];
+            const thumbnail = "https://somafm.com/" + stationRaw.split("\"", 4)[3];
+            stationsPool[name] = { name, thumbnail, stream: `http://ice4.somafm.com/${name}-128-mp3` };
+        }
+    })
+
 }
 
-// TODO: generare / scrivere lista stazioni radio disponibili
 export class RadioPlayer {
     UUID: number;                                           // Unique indentifier user to identify ButtonInteractions
     volume: number;                                         // Float
@@ -155,7 +164,7 @@ export class RadioPlayer {
         return null;
     }
 
-    private reset = () => {
+    public reset = () => {
         this.player.stop();
         // this.player = createAudioPlayer();
         this.currentRadioDynamicMessage.delete();
@@ -195,7 +204,6 @@ export class RadioPlayer {
             .setTitle("LeottaFM Radio Player")
             .setDescription(`You're listening to: **${this.currentStation.name}**`)
             .setImage(this.currentStation.thumbnail)
-            .addField(`Requested by:`, `<@${this.currentStation.requestor}>`, true);
 
         const component = new MessageActionRow()
             .addComponents(
