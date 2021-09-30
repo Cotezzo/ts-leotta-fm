@@ -1,14 +1,29 @@
 /* ==== Class ============================================================================================================================= */
+const RESET_COLOR = "\x1b[0m";
+
 export class Logger {
     public static debug = (text: string): void => this.print("DEBUG", "\x1b[37m", text);
     public static log = (text: string): void => this.print("LOG", "\x1b[36m", text);
     public static info = (text: string): void => this.print("INFO", "\x1b[32m", text);
     public static warn = (text: string): void => this.print("WARN", "\x1b[33m", text);
     public static error = (text: string): void => this.print("ERROR", "\x1b[31m", text);
-
-    private static RESET_COLOR = "\x1b[0m";
+    
     private static print = (level: string, color: string, text: string): void =>
-        console.log(`[\x1b[90m${new Date().toLocaleString()}${this.RESET_COLOR}] [${color}${level}${this.RESET_COLOR}] ${text}`);
+        console.log(`[\x1b[90m${new Date().toLocaleString()}${RESET_COLOR}] [${color}${level}${RESET_COLOR}] ${text}`);
+}
+
+export class ClassLogger {
+    className: string;
+    constructor(className: string){
+        this.className = className;
+    }
+
+    private a = () => `[\x1b[1m${this.className}${RESET_COLOR}] `;
+    public debug =  (text: string): void => Logger.debug(this.a() + text);
+    public log =    (text: string): void => Logger.log(this.a() + text);
+    public info =   (text: string): void => Logger.info(this.a() + text);
+    public warn =   (text: string): void => Logger.warn(this.a() + text);
+    public error =  (text: string): void => Logger.error(this.a() + text);
 }
 
 /*
@@ -27,6 +42,8 @@ export class Logger {
     FgWhite: "\x1b[37m",
 
 "\x1b[NUMEROm"
+
+
 FG  BG
 
 30	40	Black

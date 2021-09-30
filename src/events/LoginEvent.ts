@@ -10,6 +10,6 @@ export const loginEvent: Event = {
     name: "ready",
     fn: () => {
         LeottaFMIstance.user.setPresence({ activities: [{ name: "LeottaFM", type: "LISTENING" }], status: 'idle' });
-        Logger.log("Bot successfully started");
+        Logger.log(`=== Bot successfully deployed on version ${process.env.VERSION} ===`);
     }
 }
