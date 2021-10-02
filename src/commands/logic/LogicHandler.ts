@@ -58,7 +58,7 @@ const logicHandler: Commands<Command> = {
     /* ==== RADIO ========== */
     "l, list, stations": {
         name: "stations", category: "Radio", description: "Lists all the available stations that can be played with the command 'station'", aliases: "l, list",
-        fn: () => {
+        fn: (): string => {
             const stations = Object.keys(stationsPool);
             
             let text = "```swift\n"
@@ -70,20 +70,24 @@ const logicHandler: Commands<Command> = {
 
     "s, station": {
         name: "station", category: "Radio", description: "LeottaFM will enter your voice channel and play your favourite radio station", aliases: "s",
-        fn: (risp: Message | CommandInteraction | ButtonInteraction, stationName: string, UUID?: number): any =>
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, stationName: string, UUID: number): void => {
             getOrCreateRadioPlayer(risp.guildId)?.checkUUID(UUID)?.playStation(risp, stationName)
+            .then(success => {
+                if(!success) deleteRadioPlayer(risp.guildId);
+            })
+        }
     },
     "fuckoff, clear, stop, l, leave": {
         name: "stop", category: "Radio", description: "Kicks the bot out from the voice channel",
-        fn: (risp: Message | CommandInteraction | ButtonInteraction, UUID?: number): any => {
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, UUID: number): void => {
             getRadioPlayer(risp.guildId)?.checkUUID(UUID)?.reset();
-            delete radioPlayersMap[risp.guildId];
+            deleteRadioPlayer(risp.guildId);
         }
     },
 
     bind: {
         name: "bind", category: "Radio", description: "Binds the bot to the current text channel",
-        fn: (risp: Message | CommandInteraction): any =>
+        fn: (risp: Message | CommandInteraction): void =>
             getRadioPlayer(risp.guildId)?.updateTextChannel(risp.channel)
     },
     "np, nowplaying": {
@@ -93,10 +97,20 @@ const logicHandler: Commands<Command> = {
     },
     "v, volume": {
         name: "volume", category: "Radio", description: "Changes the volume of the radio [Default: 1]", aliases: "v",
-        fn: (risp: Message | CommandInteraction | ButtonInteraction, volume: string): any => {
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, volume: string): void => {
             if(!/[0-9]{0,2}(\.[0-9])?/.test(volume)) return;
             getRadioPlayer(risp.guildId)?.setVolume(parseFloat(volume));
         }
+    },
+    "ps, pause": {
+        name: "pause", category: "Radio", description: "Stops the radio without leaving the channel", aliases: "ps",
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, UUID: number): void =>
+            getRadioPlayer(risp.guildId)?.checkUUID(UUID)?.pause()
+    },
+    "rs, resume": {
+        name: "resume", category: "Radio", description: "Starts the radio again", aliases: "rs",
+        fn: (risp: Message | CommandInteraction | ButtonInteraction, UUID: number): void =>
+            getRadioPlayer(risp.guildId)?.checkUUID(UUID)?.resume()
     }
 };
 
@@ -116,6 +130,10 @@ const getOrCreateRadioPlayer = (guildId: string): RadioPlayer => {
     return radioPlayersMap[guildId];
 }
 
+const deleteRadioPlayer = (guildId: string): void => {
+    delete radioPlayersMap[guildId];
+    Logger.info(`RadioPlayer ${guildId} destroyed`);
+}
 
 /* ==== Post Processing =================================================================================================================== */
 interface categories { [index: string]: string[] }

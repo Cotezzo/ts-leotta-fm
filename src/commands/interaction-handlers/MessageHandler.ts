@@ -36,16 +36,8 @@ const commandHandlerMap: MessageCommandHandlerMap = {
         fn: msg => msg.reply("Test")
     },
 
-    "ping, invite, info, help": { fn: (msg, cmdName, arg: string) => msg.reply(logicHandler[cmdName].fn(arg)) },
-    "s, station, v, volume, np, nowplaying, bind, l, leave, fuckoff, clear, stop": { fn: (msg, cmdName, arg: string) => logicHandler[cmdName].fn(msg, arg) },
-    "list, stations": { fn: (msg, cmdName) => msg.reply(logicHandler[cmdName].fn()) }
-    // Music Commands
-    // "p, play": {
-    //     fn: (LeottaFM, msg, cmdName, ...args: string[]) => internalCommands[cmdName].fn(msg, args.join(" "))
-    // },
-    // "v, volume": {
-    //     fn: (LeottaFM, msg, cmdName, volume: string) => internalCommands[cmdName].fn(msg, volume)
-    // }
+    "ping, invite, info, help, list, stations": { fn: (msg, cmdName, arg: string) => msg.reply(logicHandler[cmdName].fn(arg)) },
+    "s, station, v, volume, np, nowplaying, bind, l, leave, fuckoff, clear, stop": { fn: (msg, cmdName, arg: string) => logicHandler[cmdName].fn(msg, arg) }
 }
 
 /* ==== Post Processing =================================================================================================================== */

@@ -1,13 +1,13 @@
-/* ==== Class ============================================================================================================================= */
+/* ==== Consts ============================================================================================================================ */
 const RESET_COLOR = "\x1b[0m";
 
 /* ==== Classes =========================================================================================================================== */
 export class Logger {
-    public static debug = (text: string): void => this.print("DEBUG", "\x1b[35m", text);
-    public static log = (text: string): void => this.print("LOG  ", "\x1b[32m", text);
-    public static info = (text: string): void => this.print("INFO ", "\x1b[36m", text);
-    public static warn = (text: string): void => this.print("WARN ", "\x1b[33m", text);
-    public static error = (text: string): void => this.print("ERROR", "\x1b[31m", text);
+    public static debug = (text: string): void => this.print("DBG", "\x1b[35m", text);
+    public static log = (text: string): void => this.print("LOG", "\x1b[32m", text);
+    public static info = (text: string): void => this.print("INF", "\x1b[36m", text);
+    public static warn = (text: string): void => this.print("WRN", "\x1b[33m", text);
+    public static error = (text: string): void => this.print("ERR", "\x1b[31m", text);
     
     private static print = (level: string, color: string, text: string): void =>
         console.log(`[\x1b[90m${new Date().toLocaleTimeString()}${RESET_COLOR}] [${color}${level}${RESET_COLOR}] ${text}`);

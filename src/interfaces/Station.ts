@@ -2,5 +2,7 @@
 export interface Station {
     name: string;
     thumbnail: string;
-    stream: any;
+    stream?: any;
+
+    type?: number;
 }

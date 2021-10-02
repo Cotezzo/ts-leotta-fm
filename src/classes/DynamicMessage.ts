@@ -1,6 +1,8 @@
 /* ==== Imports =========================================================================================================================== */
 import { Message, TextBasedChannels } from "discord.js";
-import { Logger } from "./Logger";
+import { ClassLogger, Logger } from "./Logger";
+
+const logger = new ClassLogger("DynamicMessage");
 
 /* ==== Class ============================================================================================================================= */
 export class DynamicMessage {
@@ -32,9 +34,14 @@ export class DynamicMessage {
      * @returns {Promise<Message>}
      */
     create = async (): Promise<Message> => {
+        if(!this.messageContent) {
+            logger.warn("messageContent is undefiend");
+            return;
+        }
+
         this.message = await this.textChannel?.send(this.messageContent);
         return this.message;
-    } 
+    }
 
     /**
      * Refreshes the already present DynamicMessage with new data. If there is no DynamicMessage, creates a new one.
@@ -44,7 +51,7 @@ export class DynamicMessage {
         try{
             if(this.message?.editable) return await this.message.edit(this.messageContent);
         }catch(e){
-            Logger.error("Error on fn edit in class DynamicMessage: " + e.message);
+            Logger.error("Edit error: " + e.message);
         }
 
         return await this.create();
@@ -57,7 +64,7 @@ export class DynamicMessage {
         try{
             if(this.message?.deletable) await this.message.delete(); 
         }catch(e){
-            Logger.error("Error on fn delete in class DynamicMessage: " + e.message);
+            Logger.error("Delete error: " + e.message);
         }
     }
 
@@ -70,7 +77,7 @@ export class DynamicMessage {
             await this.delete();
             // if(this.message?.deletable) await this.message.delete();
         }catch(e){
-            Logger.error("Error on fn resend in class DynamicMessage: " + e.message);
+            Logger.error("Resend error: " + e.message);
         }
 
         return await this.create();

@@ -1,5 +1,5 @@
 /* ==== Imports =========================================================================================================================== */
-import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
+import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu, SelectMenuInteraction, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
 import { AudioPlayer, AudioPlayerStatus, AudioResource, createAudioPlayer, createAudioResource, joinVoiceChannel, StreamType } from "@discordjs/voice";
 
 import { Station } from "../interfaces/Station";
@@ -8,27 +8,25 @@ import { DynamicMessage } from "./DynamicMessage";
 import { ClassLogger } from "./Logger";
 import { Sub } from "./Sub";
 
-// import ytdl from "ytdl-core";
-// import ytdl from "ytdl-core-discord";
-
 import axios from "axios";
-
-// const youtubePlaylist = /^https:\/\/(www.)?youtube.com\/playlist\?list=([0-9a-zA-Z_-]{18,34})$/;  //18
-// const youtubeVideo = /^https:\/\/((www.youtube.com\/watch\?v=)|(youtu.be\/))+.*/;
+import { RADIO_TYPES } from "../utils/RadioTypes";
 
 const logger = new ClassLogger("RadioPlayer");
 
 /* ==== Class ============================================================================================================================= */
 interface StationsPool<Station> { [stationName: string]: Station };
-export const stationsPool: StationsPool<Station> = {};
+export const stationsPool: StationsPool<Station> = {
+    // Hard-coded radios
+    trx: { name: "trx", thumbnail: "https://www.dailyonline.it/application/files/6715/7583/8347/TRX_Radio.png", type: RADIO_TYPES.TRX, stream: "https://trx.fluidstream.eu/trx.mp3" }
+};
+
 export const populateStationsPool = async (): Promise<void> => {
     logger.info("Populating stationsPool...");
     await axios.get("https://somafm.com/").then(res => res.data).then(data => {
-
-        for(const stationRaw of data.match(/<a href="\/.+\/" >\n.*<img src="\/img\/.*" alt/g)){
+        for (const stationRaw of data.match(/<a href="\/.+\/" >\n.*<img src="\/img\/.*" alt/g)) {
             const name = stationRaw.split(/\//g, 2)[1];
             const thumbnail = "https://somafm.com/" + stationRaw.split("\"", 4)[3];
-            stationsPool[name] = { name, thumbnail, stream: `http://ice4.somafm.com/${name}-128-mp3` };
+            stationsPool[name] = { name, thumbnail, type: RADIO_TYPES.SOMAFM };
         }
     })
 
@@ -49,8 +47,6 @@ export class RadioPlayer {
 
     /* ==== DynamicMessages ==== */
     textChannel: TextBasedChannels;                         // Where to log / send all the messages
-    chooseRadioPage: number;                                // -queue navigator page
-    chooseRadioDynamicMessage: DynamicMessage;              // -queue navigator message handler
     currentRadioDynamicMessage: DynamicMessage;             // main player message handler
 
     /* ==== Public functions ======== */
@@ -60,7 +56,6 @@ export class RadioPlayer {
 
         this.player = createAudioPlayer();                              // Brand new AudioPlayer
 
-        this.chooseRadioDynamicMessage = new DynamicMessage(this.UUID); // Create main player interface with the new UUID
         this.currentRadioDynamicMessage = new DynamicMessage(this.UUID);// Create navigator interface with the new UUID
 
         this.player.on("stateChange", (_, newState) =>
@@ -85,33 +80,71 @@ export class RadioPlayer {
      * @param stationName 
      * @returns 
      */
-    public playStation = async (risp: Message | CommandInteraction | ButtonInteraction, stationName: string): Promise<void> => {
-        if (!this.checkVoice(risp)) return;
+    public playStation = async (risp: Message | CommandInteraction | ButtonInteraction, stationName: string): Promise<boolean> => {
+        logger.info("Calling playStation");
 
-        if (this.isPlaying()) this.player.stop();                               // Stop currently playing station, if any
+        if (!this.checkVoice(risp)) return true;
 
-        if (!this.textChannel) this.updateTextChannel(risp.channel);            // Update textChannel
-        if (!(risp.member instanceof GuildMember)) return;                      // To avoid errors in the next line
+        if (!this.textChannel) this.updateTextChannel(risp.channel);        // Update textChannel
+        if (!(risp.member instanceof GuildMember)) return true;             // To avoid errors in the next line
         if (!this.voiceChannel) this.voiceChannel = risp.member.voice?.channel; // If nothing is playing, set the voiceChannel to the new one
         // if (!this.voiceChannel/* || (this.sub?.connection && this.sub?.connection.state.status != "destroyed")*/) return;
 
-        this.currentStation = await this.getStation(stationName);            // Get selected station
-        if (!this.currentStation) {
+        const tempStation: Station = await this.getStation(stationName);    // Get selected station
+        if (!tempStation) {
             logger.warn("Invalid station selected");
-            // reset();
-            return;
+            return true;
         }
+        this.currentStation = tempStation;
 
+        /* 
+        TODO: abolire la Sub, inserire connessione qui dentro e, sempre qui dentro, attivare i listener. Se la connessione non è stabilita, non creare e non ascoltare di nuovo.
+        if (!this.sub) {
+            this.connection = joinVoiceChannel({ channelId: this.voiceChannel.id, guildId: this.voiceChannel.guildId, adapterCreator: this.voiceChannel.guild.voiceAdapterCreator });
+            
+            // Listeners
+            this.connection.on("error", () => {
+                logger.warn("Connection error");
+            })
+
+            this.connection.on("stateChange", async (_, newState) => {
+
+                // Handle disconnection
+                if (newState.status === VoiceConnectionStatus.Disconnected) {
+                    if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
+                        /*
+                            If the WebSocket closed with a 4014 code, this means that we should not manually attempt to reconnect,
+                            but there is a chance the connection will recover itself if the reason of the disconnect was due to
+                            switching voice channels. This is also the same code for the bot being kicked from the voice channel,
+                            so we allow 5 seconds to figure out which scenario it is. If the bot has been kicked, we should destroy
+                            the voice connection.
+                        *
+                        try {
+                            await entersState(this.connection, VoiceConnectionStatus.Connecting, 5_000);    // Probably moved voice channel
+                        } catch {
+                            this.connection.destroy();                                                      // Probably removed from voice channel
+                        }
+                    } else if (this.connection.rejoinAttempts < 5) {    		                            // Disconnect is recoverable, and we have <5 repeated attempts so we will reconnect.
+                        await wait((this.connection.rejoinAttempts + 1) * 5_000);
+                        this.connection.rejoin();
+                    } else this.connection.destroy();                                                       // Disconnect may be recoverable, but we have no more remaining attempts - destroy.			
+                } else if (newState.status === VoiceConnectionStatus.Destroyed) logger.warn("Connection destroyed");   // Once destroyed, stop the subscription
+            });
+        }
+        */
+
+        this.sub?.connection?.destroy();
         this.sub = new Sub(joinVoiceChannel({ channelId: this.voiceChannel.id, guildId: this.voiceChannel.guildId, adapterCreator: this.voiceChannel.guild.voiceAdapterCreator }));
 
         try {// Create AudioResource with url/stream retrieved
             this.resource = createAudioResource(this.currentStation.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
             this.setVolume();                                       // Set the volume of the new stream
+            if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
             this.sub.connection.subscribe(this.player);             // Apply the player to the connection (??)
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
-            // reset();
+            this.reset();
             return;
         }
 
@@ -123,11 +156,10 @@ export class RadioPlayer {
             });
         } catch (e) {
             logger.error("Last message check and update error: " + e.message);
-            // reset();
-            // return;
         }
 
         logger.info("Station changed successfully");
+        return true;
     }
 
     /**
@@ -136,7 +168,6 @@ export class RadioPlayer {
      */
     public updateTextChannel = (textChannel: TextBasedChannels): void => {
         this.textChannel = textChannel;
-        this.chooseRadioDynamicMessage.updateTextChannel(textChannel).resend();
         this.currentRadioDynamicMessage.updateTextChannel(textChannel).resend();
     }
 
@@ -149,10 +180,26 @@ export class RadioPlayer {
         this.resource?.volume.setVolume(this.volume);   // If there's a resource, apply the volume
     }
 
+    public pause = (): void => {
+        if (this.isPaused()) return;
+        this.player.pause();
+        this.editCurrentRadioDynamicMessage();
+    }
+
+    public resume = (): void => {
+        if (this.isPlaying()) return;
+        this.player.unpause();
+        this.editCurrentRadioDynamicMessage();
+    }
+
     /**
      * Validates a request, used for ButtonInteractions.
      */
     public checkUUID = (UUID: number): RadioPlayer => (!UUID || this.UUID == UUID) ? this : undefined;
+
+    public checkPresence = (risp: Message | CommandInteraction | ButtonInteraction) => {
+
+    }
 
     public editCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
     public resendCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
@@ -160,14 +207,27 @@ export class RadioPlayer {
 
     /* ==== Private functions ======= */
     private getStation = async (stationName: string): Promise<Station> => {
-        // TODO
-        return null;
+        const station: Station = stationsPool[stationName];
+        if (!station) return;
+
+        // TODO: different stream for different Radio_Type
+
+        // somafm
+        if (station.type === RADIO_TYPES.SOMAFM) {
+            const trueStationName = (await axios.get(`https://somafm.com/${station.name}`)).request.path.slice(1, -1);
+            station.stream = `http://ice4.somafm.com/${trueStationName}-128-mp3`;
+        } else if (station.type === RADIO_TYPES.TRX) {
+            // Stream already in the object... If condition is there so the fn doesn't return undefined
+            // station.stream = "https://trx.fluidstream.eu/trx.mp3";
+        } else return;
+
+        return station;
     }
 
     public reset = () => {
         this.player.stop();
-        // this.player = createAudioPlayer();
-        this.currentRadioDynamicMessage.delete();
+        this.sub?.connection?.destroy();
+        this.currentRadioDynamicMessage?.delete();
 
         this.volume = 1;
         this.UUID = Date.now();
@@ -195,7 +255,11 @@ export class RadioPlayer {
         if (vc && (!this.voiceChannel || this.voiceChannel.id == vc.id)) return this;
     }
 
-    // Queue
+    /**
+     * Generates the embed with the radio name and thumbnail
+     * TODO: mostrare il nome della canzone in riproduzione
+     * @returns
+     */
     private getCurrentRadioContent = (): any => {
         const paused: boolean = this.isPaused();
 
@@ -205,7 +269,7 @@ export class RadioPlayer {
             .setDescription(`You're listening to: **${this.currentStation.name}**`)
             .setImage(this.currentStation.thumbnail)
 
-        const component = new MessageActionRow()
+        const buttonComponent = new MessageActionRow()
             .addComponents(
                 new MessageButton()
                     .setCustomId((paused ? "resume" : "pause") + `-${this.UUID}`)
@@ -214,22 +278,20 @@ export class RadioPlayer {
                     .setEmoji(paused ? "877853994305855508" : "877853994259730453"),
 
                 new MessageButton()
-                    .setCustomId(`clear-${this.UUID}`)
+                    .setCustomId(`stop-${this.UUID}`)
                     .setStyle("SECONDARY")
                     // .setEmoji("⏹️")
                     .setEmoji("877853994293280828"),
-
-                /*
-                TODO: interaction to send chooseRadio
-                new MessageButton()
-                    .setCustomId(`clear-${this.UUID}`)
-                    .setStyle("SECONDARY")
-                    // .setEmoji("⏹️")
-                    .setEmoji("877853994293280828")
-                */
-
             );
 
-        return { embeds: [embed], components: [component] };
+        const menuComponent = new MessageActionRow()
+            .addComponents(
+                /* TODO: interaction to send chooseRadio */
+                new MessageSelectMenu()
+                    .setCustomId('station')
+                    .setPlaceholder(this.currentStation.name)
+                    .addOptions(Object.keys(stationsPool).map(el => { return { label: el, value: `${el}-${this.UUID}` } }).slice(0, 24)));
+
+        return { embeds: [embed], components: [buttonComponent, menuComponent] };
     }
 }

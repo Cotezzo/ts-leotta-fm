@@ -1,8 +1,9 @@
 /* ==== Imports =========================================================================================================================== */
-import { Interaction, Message } from "discord.js";
+import { Interaction, Message, SelectMenuInteraction } from "discord.js";
 
 import { LeottaFM } from "../classes/LeottaFM";
 
+import { SelectMenuInteractionHandler } from "../commands/interaction-handlers/SelectMenuInteractionHandler";
 import { ButtonInteractionHandler } from "../commands/interaction-handlers/ButtonInteractionHandler";
 import { CommandInteractionHandler } from "../commands/interaction-handlers/CommandInteractionHandler";
 import { MessageHandler } from "../commands/interaction-handlers/MessageHandler";
@@ -14,8 +15,9 @@ export const toListenEvents: Event[] = [
     {   // On server built-in commands interaction (first call)
         name: "interactionCreate",
         fn: async (_: LeottaFM, interaction: Interaction) => {
-            if(interaction.isCommand()) return CommandInteractionHandler(interaction); // Handle command and output
-            if(interaction.isButton()) return ButtonInteractionHandler(interaction);   // Handle buttons call (new reactions)
+            if(interaction.isCommand()) return CommandInteractionHandler(interaction);          // Handle command and output
+            if(interaction.isButton()) return ButtonInteractionHandler(interaction);            // Handle buttons call (new reactions)
+            if(interaction.isSelectMenu()) return SelectMenuInteractionHandler(interaction);    // Handle menu call (scroll list)
         }
     },
     {   // Event triggered on every text message
