@@ -1,15 +1,18 @@
 /* ==== Imports =========================================================================================================================== */
-import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu, SelectMenuInteraction, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
-import { AudioPlayer, AudioPlayerStatus, AudioResource, createAudioPlayer, createAudioResource, joinVoiceChannel, StreamType } from "@discordjs/voice";
+import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
+import { AudioPlayer, AudioResource, createAudioPlayer, createAudioResource, entersState, joinVoiceChannel, StreamType, VoiceConnection, VoiceConnectionDisconnectReason, VoiceConnectionStatus } from "@discordjs/voice";
 
 import { Station } from "../interfaces/Station";
 
 import { DynamicMessage } from "./DynamicMessage";
 import { ClassLogger } from "./Logger";
-import { Sub } from "./Sub";
+
+import { RADIO_TYPES } from "../utils/RadioTypes";
 
 import axios from "axios";
-import { RADIO_TYPES } from "../utils/RadioTypes";
+
+import { promisify } from 'util';
+const wait = promisify(setTimeout);
 
 const logger = new ClassLogger("RadioPlayer");
 
@@ -41,7 +44,8 @@ export class RadioPlayer {
     /* ==== Audio ============== */
     // TODO: on voice channel changed, update this.voiceChannel
     voiceChannel: VoiceChannel | StageChannel;              // The current voiceChannel the bot is in
-    sub: Sub;                                               // Voice connection events handler
+    // sub: Sub;                                               // Voice connection events handler
+    connection: VoiceConnection;
     player: AudioPlayer;                                    // Music player
     resource: AudioResource<null>;                          // Resource - stream that is being played
 
@@ -63,11 +67,7 @@ export class RadioPlayer {
 
         this.player.on("error", (e) =>
             logger.warn("AudioPlayer error: " + e.message));
-
-        this.player.on(AudioPlayerStatus.Idle, () => {  // On player finish (unexpected, since radio should be continous)
-            // TODO: if the stream crashed, play again. If user kicked the bot, don't.
-            // this.play();
-        })
+            // TODO: if error, try to reconnect
 
         logger.info("New instance created and listening on AudioPlayer events");
     }
@@ -97,18 +97,18 @@ export class RadioPlayer {
         }
         this.currentStation = tempStation;
 
-        /* 
-        TODO: abolire la Sub, inserire connessione qui dentro e, sempre qui dentro, attivare i listener. Se la connessione non è stabilita, non creare e non ascoltare di nuovo.
-        if (!this.sub) {
+        
+        if (!this.connection || this.connection.state.status == "destroyed") {
             this.connection = joinVoiceChannel({ channelId: this.voiceChannel.id, guildId: this.voiceChannel.guildId, adapterCreator: this.voiceChannel.guild.voiceAdapterCreator });
             
             // Listeners
             this.connection.on("error", () => {
                 logger.warn("Connection error");
             })
+            logger.info("Listening on connection event 'error'");
 
             this.connection.on("stateChange", async (_, newState) => {
-
+                logger.info("Connection state changed to " + newState.status);
                 // Handle disconnection
                 if (newState.status === VoiceConnectionStatus.Disconnected) {
                     if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
@@ -118,7 +118,7 @@ export class RadioPlayer {
                             switching voice channels. This is also the same code for the bot being kicked from the voice channel,
                             so we allow 5 seconds to figure out which scenario it is. If the bot has been kicked, we should destroy
                             the voice connection.
-                        *
+                        */
                         try {
                             await entersState(this.connection, VoiceConnectionStatus.Connecting, 5_000);    // Probably moved voice channel
                         } catch {
@@ -130,18 +130,15 @@ export class RadioPlayer {
                     } else this.connection.destroy();                                                       // Disconnect may be recoverable, but we have no more remaining attempts - destroy.			
                 } else if (newState.status === VoiceConnectionStatus.Destroyed) logger.warn("Connection destroyed");   // Once destroyed, stop the subscription
             });
+            logger.info("Listening on connection event 'stateChange'");
         }
-        */
-
-        this.sub?.connection?.destroy();
-        this.sub = new Sub(joinVoiceChannel({ channelId: this.voiceChannel.id, guildId: this.voiceChannel.guildId, adapterCreator: this.voiceChannel.guild.voiceAdapterCreator }));
 
         try {// Create AudioResource with url/stream retrieved
             this.resource = createAudioResource(this.currentStation.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
             this.setVolume();                                       // Set the volume of the new stream
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
-            this.sub.connection.subscribe(this.player);             // Apply the player to the connection (??)
+            this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();
@@ -226,7 +223,8 @@ export class RadioPlayer {
 
     public reset = () => {
         this.player.stop();
-        this.sub?.connection?.destroy();
+        this.connection?.destroy();
+        // this.sub?.connection?.destroy();
         this.currentRadioDynamicMessage?.delete();
 
         this.volume = 1;
