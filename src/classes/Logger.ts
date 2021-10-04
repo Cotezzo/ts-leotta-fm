@@ -20,7 +20,7 @@ export class ClassLogger {
         this.className = className;
     }
 
-    private a = () => `[\x1b[1m${this.className}${RESET_COLOR}] `;
+    private a = (): string => `[\x1b[1m${this.className}${RESET_COLOR}] `;
     public debug =  (text: string): void => Logger.debug(this.a() + text);
     public log =    (text: string): void => Logger.log(this.a() + text);
     public info =   (text: string): void => Logger.info(this.a() + text);

@@ -2,7 +2,8 @@
 export interface Station {
     name: string;
     thumbnail: string;
-    stream?: any;
+    type: number;
 
-    type?: number;
+    link?: string;
+    stream?: any;
 }

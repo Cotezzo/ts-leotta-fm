@@ -29,8 +29,8 @@ export const SelectMenuInteractionHandler = async (interaction: SelectMenuIntera
 
 /* ==== Command Handlers ================================================================================================================== */
 const commandHandlerMap: SelectMenuInteractionHandlerMap = {
-    station: (interaction, cmdName, stationName: string, UUID: number): void => {
-        logicHandler[cmdName].fn(interaction, stationName, UUID);
+    "station, station2": (interaction, cmdName, stationName: string, UUID: number): void => {
+        logicHandler["station"].fn(interaction, stationName, UUID);
         interaction.deferUpdate();
     }
 }

@@ -2,7 +2,9 @@
 import { ButtonInteraction, ColorResolvable, CommandInteraction, Message, MessageEmbed } from "discord.js";
 import { LeottaFMIstance } from "../../";
 import { Logger } from "../../classes/Logger";
-import { RadioPlayer, stationsPool } from "../../classes/RadioPlayer";
+import { RadioPlayer } from "../../classes/RadioPlayer";
+
+import { stationsPool } from "../../globals/StationsPool";
 
 import { Command, Commands } from "../../interfaces/CommandLogic";
 
@@ -59,11 +61,11 @@ const logicHandler: Commands<Command> = {
     "l, list, stations": {
         name: "stations", category: "Radio", description: "Lists all the available stations that can be played with the command 'station'", aliases: "l, list",
         fn: (): string => {
-            const stations = Object.keys(stationsPool);
+            const stationNames = Object.values(stationsPool).map(o => o.name);
             
             let text = "```swift\n"
-            for(let i = 0; i < stations.length; i+= 3)
-                text += fill15(stations[i] ?? "") + " " + fill15(stations[i+1] ?? "") + " " + fill15(stations[i+2] ?? "") + "\n";
+            for(let i = 0; i < stationNames.length; i+= 3)
+                text += fill15(stationNames[i] ?? "") + " " + fill15(stationNames[i+1] ?? "") + " " + fill15(stationNames[i+2] ?? "") + "\n";
             return text + "```";
         }
     },
