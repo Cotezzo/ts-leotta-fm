@@ -132,6 +132,7 @@ export class RadioPlayer {
         }
 
         try {// Create AudioResource with url/stream retrieved
+            logger.debug("piping...");
             this.resource = createAudioResource(/*Readable.from*/(this.currentStation.stream), { inlineVolume: true, inputType: StreamType.Arbitrary });
             this.setVolume();                                       // Set the volume of the new stream
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
@@ -211,25 +212,31 @@ export class RadioPlayer {
                 const urlRoot = "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/";
 
                 let startNumber = await axios.get(urlRoot + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
+
+                // station.stream = new Readable.Stream();
                 station.stream = ss();
                 // station.stream = CombinedStream.create({pauseStreams: false});
 
-                const url = `${urlRoot}media-u1nu3maeq_b128000_${startNumber}.aac`;
-
-                await axios.get(url, { responseType: "stream" }).then(r => {
-                    logger.debug("stream esiste");
-                    station.stream.write(r.data);
-                    startNumber++;
-                }).catch(e => console.log(e));
 
                 // through the data event
                 station.stream.on('data', (chunk) => {
                     console.log("Chunk received");
                 });
+                
+                station.stream.on('end', () => {
+                    console.log("Stream ended");
+                });
 
-                // station.stream.on('end', () => {
-                //     console.log("Stream ended");
-                // });
+                const url = `${urlRoot}media-u1nu3maeq_b128000_${startNumber}.aac`;
+
+                await axios.get(url, { responseType: "stream" }).then(async r => {
+                    logger.debug("stream esiste");
+                    station.stream.write(r.data);
+                    // stream.write(r.data);
+                    startNumber++;
+                }).catch(e => console.log(e));
+
+                
 
                 // Remove old interval fn (if any)
                 if (this.intervalId) clearInterval(this.intervalId);
@@ -242,6 +249,7 @@ export class RadioPlayer {
                     await axios.get(url, { responseType: "stream" }).then(r => {
                         logger.debug("stream esiste");
                         station.stream.write(r.data);
+                        // stream.write(r.data);
                         // station.stream.end();
                         startNumber++;
                     }).catch(e => logger.error("Stream error: " + e.message));
