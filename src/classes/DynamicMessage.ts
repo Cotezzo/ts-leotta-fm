@@ -35,7 +35,7 @@ export class DynamicMessage {
      */
     create = async (): Promise<Message> => {
         if(!this.messageContent) {
-            logger.warn("messageContent is undefiend");
+            logger.warn("messageContent is undefined");
             return;
         }
 
