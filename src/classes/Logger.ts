@@ -16,8 +16,12 @@ export class Logger {
 
 export class ClassLogger {
     private className: string;
+
     constructor(className: string){
         this.className = className;
+
+        if(process.env.ENVIROMENT == "P")
+            this.debug = null;
     }
 
     private a = (): string => `[\x1b[1m${this.className}${RESET_COLOR}] `;

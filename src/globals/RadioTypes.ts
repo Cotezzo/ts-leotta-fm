@@ -5,5 +5,6 @@ export const RADIO_TYPES = {
 
     SOMAFM: 1,
     TRX: 2,
-    VIRGIN: 3
+    VIRGIN: 3,
+    FRECCIA: 4
 };

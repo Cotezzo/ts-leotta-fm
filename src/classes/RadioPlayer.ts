@@ -5,9 +5,6 @@ import { AudioPlayer, AudioResource, createAudioPlayer, createAudioResource, ent
 import { Station } from "../interfaces/Station";
 
 import { Readable } from 'stream';
-import fs from "fs";
-import ytdl from "ytdl-core";
-import m3u8stream from "m3u8stream";
 
 import { DynamicMessage } from "./DynamicMessage";
 import { ClassLogger } from "./Logger";
@@ -36,10 +33,6 @@ export class RadioPlayer {
     private resource: AudioResource<null>;                              // Resource - stream that is being played
 
     private intervalId: NodeJS.Timer;
-    private intervalParams: any;
-
-    // intervalId = setInterval(fname, 10000);
-    // clearInterval(intervalId);
 
     /* ==== DynamicMessages ==== */
     private textChannel: TextBasedChannels;                             // Where to log / send all the messages
@@ -47,7 +40,6 @@ export class RadioPlayer {
 
     /* ==== Public functions ======== */
     public constructor() {
-        this.intervalParams = {};
         this.UUID = Date.now();                                         // Initialize UUID for this session
         this.volume = 1;
 
@@ -83,7 +75,7 @@ export class RadioPlayer {
         if (!this.voiceChannel) this.voiceChannel = risp.member.voice?.channel; // If nothing is playing, set the voiceChannel to the new one
         // if (!this.voiceChannel/* || (this.sub?.connection && this.sub?.connection.state.status != "destroyed")*/) return;
 
-        if(!await this.setCurrentStation(stationName)){
+        if (!await this.setCurrentStation(stationName)) {
             logger.warn("Invalid station selected");
             return this.isPlaying();                                            // If there's something playing, don't delete the RadioPlayer
         }
@@ -124,13 +116,13 @@ export class RadioPlayer {
         }
 
         try {// Create AudioResource with url/stream retrieved
-
             this.resource = createAudioResource(this.currentStation.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
             this.setVolume();                                       // Set the volume of the new stream
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
             this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
-
+            console.log(this.resource.playStream.readableHighWaterMark);
+            console.log(this.resource.encoder.readableHighWaterMark);
             console.log(this.resource.playStream.readableFlowing);
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
@@ -182,90 +174,13 @@ export class RadioPlayer {
         this.editCurrentRadioDynamicMessage();
     }
 
-    /**
-     * Validates a request, used for ButtonInteractions.
-     */
-    public checkUUID = (UUID: number): RadioPlayer => (!UUID || this.UUID == UUID) ? this : undefined;
-
-    public checkPresence = (risp: Message | CommandInteraction | ButtonInteraction) => {}
-
-    public editCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
-    public resendCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
-
-
-    /* ==== Private functions ======= */
-    // private probeAndCreateResource = async (readableStream) => {
-    //     const { stream, type } = await demuxProbe(readableStream);
-    //     return createAudioResource(stream, { inputType: type });
-    // }
-
-    private static urlRoot: string = "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/";
-    private startNumber: number;
-    private aacGetter = async () => {
-        await axios.get(`${RadioPlayer.urlRoot}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
-            if(!chunk) return logger.warn("Chunk is undefined");
-            logger.debug("Sending chunk " + this.startNumber++);
-            this.currentStation.stream.push(chunk);
-            // this.currentStation.stream.push(null);
-        }).catch(e => logger.error("Stream error: " + e.message));
-    }
-
-    rs: Readable;
-    private setCurrentStation = async (stationName: string): Promise<boolean> => {
-        stationName = stationName?.toLowerCase();
-        if (!stationsPool.hasOwnProperty(stationName)) return;
-        this.currentStation = stationsPool[stationName];
-
-        if (this.currentStation.type === RADIO_TYPES.TEST) {
-
-            /**/
-            // Find start number, create Readable stream
-            this.startNumber = await axios.get(RadioPlayer.urlRoot + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
-            this.currentStation.stream = new Readable({ read() {} });
-
-            // Remove old interval fn (if any), and start pushging new chunks to the stream
-            if (this.intervalId) clearInterval(this.intervalId);
-            this.intervalId = setInterval( this.aacGetter, 2500 );
-            /**/
-
-            // this.currentStation.stream.pipe(fs.createWriteStream("./files/test.mp4"));
-            // this.currentStation.stream = fs.createReadStream("./files/test.mp4");
-            // this.currentStation.stream = ytdl("https://www.youtube.com/watch?v=Dx5qFachd3A");
-            
-        } else if (this.currentStation.type !== RADIO_TYPES.SOMAFM && this.currentStation.type !== RADIO_TYPES.TRX && this.currentStation.type !== RADIO_TYPES.VIRGIN) return;
-        return true;
-
-        /*
-        try {
-
-            if (station.type === RADIO_TYPES.SOMAFM) {
-                // SomaFM radios are now hardcoded, too
-
-                // const res = await axios.get(`https://somafm.com/${stationName}`, { "headers": { "cache-control": "no-cache", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36" }});
-                // const trueStationName = res.request.path.slice(1, -1);
-                
-                // station.thumbnail = "https://somafm.com" + res.data.split("img src", 2)[1].split("\"", 2)[1];
-                // station.stream = `http://ice4.somafm.com/${trueStationName}-128-mp3`;
-            } else if (station.type === RADIO_TYPES.TRX || station.type === RADIO_TYPES.VIRGIN) {
-                // Stream already in the object... If condition is there so the fn doesn't return undefined
-                // station.stream = "https://trx.fluidstream.eu/trx.mp3";
-            } else return;
-        } catch (e) {
-            logger.error("setCurrentStation error: " + e.message);
-            return;
-        }
-
-        return station;
-        */
-    }
-
     public reset = () => {
+        this.closeInterval();
         this.player.stop();
         this.connection?.destroy();
         // this.sub?.connection?.destroy();
         this.currentRadioDynamicMessage?.delete();
 
-        this.intervalParams = {};
         this.volume = 1;
         this.UUID = Date.now();
         this.currentRadioDynamicMessage = new DynamicMessage(this.UUID);
@@ -273,6 +188,55 @@ export class RadioPlayer {
         this.resource = undefined;
         this.textChannel = undefined;
         this.voiceChannel = undefined;
+    }
+
+    /**
+     * Validates a request, used for ButtonInteractions.
+     */
+    public checkUUID = (UUID: number): RadioPlayer => (!UUID || this.UUID == UUID) ? this : undefined;
+
+    public checkPresence = (risp: Message | CommandInteraction | ButtonInteraction) => { }
+
+    public editCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
+    public resendCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
+
+
+    /* ==== Private functions ======= */
+    private closeInterval = () => { 
+        if (this.intervalId) {
+            this.currentStation.stream.push(null);
+            clearInterval(this.intervalId);
+            this.intervalId = undefined;
+        }
+    }
+
+    private startNumber: number;
+    private aacGetter = async () => {
+        await axios.get(`${this.currentStation.link}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
+            logger.debug("Sending chunk " + this.startNumber++);
+            this.currentStation.stream.push(chunk);
+        }).catch(e => logger.error(`Stream error on chunk ${this.startNumber - 1}: ${e.message}`));
+    }
+
+    private setCurrentStation = async (stationName: string): Promise<boolean> => {
+        // Check whether the station exists or not
+        stationName = stationName?.toLowerCase();
+        if (!stationsPool.hasOwnProperty(stationName)) return;
+        
+        // If station exists, close the old stream and instance the new station
+        this.closeInterval();
+        this.currentStation = stationsPool[stationName];
+
+        if (this.currentStation.type === RADIO_TYPES.FRECCIA) {
+            // Find start number, create Readable stream
+            this.startNumber = await axios.get(this.currentStation.link + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
+            this.currentStation.stream = new Readable({ read() { } });
+
+            // Remove old interval fn (if any), and start pushging new chunks to the stream
+            this.intervalId = setInterval(this.aacGetter, 2750);
+
+        } else if (this.currentStation.type !== RADIO_TYPES.SOMAFM && this.currentStation.type !== RADIO_TYPES.TRX && this.currentStation.type !== RADIO_TYPES.VIRGIN) return;
+        return true;
     }
 
     /**

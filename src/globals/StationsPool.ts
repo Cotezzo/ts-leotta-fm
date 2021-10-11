@@ -10,7 +10,7 @@ interface StationsPool<Station> { [stationName: string]: Station };
 
 export const stationsPool: StationsPool<Station> = {
     // Hard-coded radios
-    test: { name: "test", thumbnail: "", type: RADIO_TYPES.TEST, link: "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/media-u1nu3maeq_b128000_118118216.aac" },
+    freccia: { name: "Freccia", thumbnail: "https://pbs.twimg.com/profile_images/791580901260001280/CDH3kQ_N.jpg", type: RADIO_TYPES.FRECCIA, link: "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/" },
 
     trx: { name: "TRX", thumbnail: "https://www.dailyonline.it/application/files/6715/7583/8347/TRX_Radio.png", type: RADIO_TYPES.TRX, stream: "https://trx.fluidstream.eu/trx.mp3" },
 
@@ -58,8 +58,7 @@ export const stationsPool: StationsPool<Station> = {
 
 /* ==== Post Processing =================================================================================================================== */
 export const populateStationsPool = async (): Promise<void> => {
-    return;
-
+    /* ==== PER ORA TUTTO HARD-CODED - per evitare richieste ad ogni riavvio ==== *
     Logger.info("Populating stationsPool...");
     await axios.get("https://somafm.com/").then(res => res.data).then(data => data.split("holiday", 1)[0]).then(data => {
         for (const stationRaw of data.match(/<a href="\/.+\/" >\n.*<img src="\/img\/.*" alt/g)) {
@@ -68,4 +67,5 @@ export const populateStationsPool = async (): Promise<void> => {
             stationsPool[name] = { name: capitalizeFirstLetter(name), thumbnail, type: RADIO_TYPES.SOMAFM };
         }
     });
+    /* ========================================================================== */
 }
