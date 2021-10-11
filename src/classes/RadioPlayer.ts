@@ -4,7 +4,7 @@ import { AudioPlayer, AudioResource, createAudioPlayer, createAudioResource, ent
 
 import { Station } from "../interfaces/Station";
 
-import { Readable, PassThrough } from 'stream';
+import { Readable } from 'stream';
 import fs from "fs";
 import ytdl from "ytdl-core";
 import m3u8stream from "m3u8stream";
@@ -59,7 +59,7 @@ export class RadioPlayer {
             logger.info("AudioPlayer state changed to " + newState.status));
 
         this.player.on("error", (e) =>
-            logger.warn("AudioPlayer error: " + e.message));
+            logger.error("AudioPlayer error: " + e.message));
         // TODO: if error, try to reconnect
 
         logger.info("New instance created and listening on AudioPlayer events");
@@ -126,20 +126,12 @@ export class RadioPlayer {
         try {// Create AudioResource with url/stream retrieved
 
             this.resource = createAudioResource(this.currentStation.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
-            // this.resource = createAudioResource(this.currentStation.stream);
-
-            // console.log(this.resource.playStream);
-            
-            // this.resource.playStream.on("data", chunk => { console.log("PS DATA RECEIVED"); })
-            // this.resource.playStream.on("close", chunk => { console.log("PS CLOSE"); })
-            // this.resource.playStream.on("end", chunk => { console.log("PS END"); })
-            // this.resource.playStream.on("finish", chunk => { console.log("PS FINISH"); })
-            // this.resource.playStream.on("error", e => { console.log("PS ERROR: "); console.log(e) })
-
-            // this.setVolume();                                       // Set the volume of the new stream
+            this.setVolume();                                       // Set the volume of the new stream
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
             this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
+
+            console.log(this.resource.playStream.readableFlowing);
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();
@@ -210,20 +202,15 @@ export class RadioPlayer {
     private static urlRoot: string = "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/";
     private startNumber: number;
     private aacGetter = async () => {
-        await axios.get(`${RadioPlayer.urlRoot}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(async chunk => {
-            
+        await axios.get(`${RadioPlayer.urlRoot}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
             if(!chunk) return logger.warn("Chunk is undefined");
-
-            logger.debug("Sending chunk " + this.startNumber);
-            // (this.currentStation.stream as Readable).resume();
+            logger.debug("Sending chunk " + this.startNumber++);
             this.currentStation.stream.push(chunk);
-            // (this.currentStation.stream as Readable).pause();
-            // (this.currentStation.stream as PassThrough).read();
-            // this.resource.playStream.push(chunk);
-            this.startNumber++;
+            // this.currentStation.stream.push(null);
         }).catch(e => logger.error("Stream error: " + e.message));
     }
 
+    rs: Readable;
     private setCurrentStation = async (stationName: string): Promise<boolean> => {
         stationName = stationName?.toLowerCase();
         if (!stationsPool.hasOwnProperty(stationName)) return;
@@ -231,30 +218,7 @@ export class RadioPlayer {
 
         if (this.currentStation.type === RADIO_TYPES.TEST) {
 
-            // This plays the yt live successfully
-            this.currentStation.stream = ytdl("https://www.youtube.com/watch?v=Dx5qFachd3A", { quality: 'highestaudio', highWaterMark: 1 << 25 });
-            // this.currentStation.stream.pipe(fs.createWriteStream("./appoggio.aac"));
-
             /*
-            this.currentStation.stream = new PassThrough({ highWaterMark: 1024 * 512 });
-            this.currentStation.stream._destroy = () => { this.currentStation.stream.destroyed = true; };
-
-            const stream = m3u8stream("https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/chunklist_b128000.m3u8",
-            { begin: Date.now(), requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36' } } });
-            
-            stream.pipe(this.currentStation.stream, { end: false });
-            
-            this.currentStation.stream._destroy = () => {
-                this.currentStation.stream.destroyed = true;
-                stream.destroy();
-                stream.end();
-            };
-
-            this.currentStation.stream.pipe(fs.createWriteStream("./appoggio.aac"));
-            */
-
-
-            /* DOVREBBE FUNZIONARE, SU FILE FUNZIONA PERFETTAMENTE
             // Find start number, create Readable stream
             this.startNumber = await axios.get(RadioPlayer.urlRoot + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
             this.currentStation.stream = new Readable({ read() {} });
@@ -262,11 +226,12 @@ export class RadioPlayer {
             // Remove old interval fn (if any), and start pushging new chunks to the stream
             if (this.intervalId) clearInterval(this.intervalId);
             this.intervalId = setInterval( this.aacGetter, 2500 );
-
-            // Use the stream
-            stream.pipe(fs.createWriteStream("./appoggio.aac"));
             */
 
+            // this.currentStation.stream.pipe(fs.createWriteStream("./files/test.mp4"));
+            // this.currentStation.stream = fs.createReadStream("./files/test.mp4");
+            this.currentStation.stream = ytdl("https://www.youtube.com/watch?v=Dx5qFachd3A");
+            
         } else if (this.currentStation.type !== RADIO_TYPES.SOMAFM && this.currentStation.type !== RADIO_TYPES.TRX && this.currentStation.type !== RADIO_TYPES.VIRGIN) return;
         return true;
 
