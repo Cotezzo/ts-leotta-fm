@@ -218,7 +218,7 @@ export class RadioPlayer {
 
         if (this.currentStation.type === RADIO_TYPES.TEST) {
 
-            /*
+            /**/
             // Find start number, create Readable stream
             this.startNumber = await axios.get(RadioPlayer.urlRoot + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
             this.currentStation.stream = new Readable({ read() {} });
@@ -226,11 +226,11 @@ export class RadioPlayer {
             // Remove old interval fn (if any), and start pushging new chunks to the stream
             if (this.intervalId) clearInterval(this.intervalId);
             this.intervalId = setInterval( this.aacGetter, 2500 );
-            */
+            /**/
 
             // this.currentStation.stream.pipe(fs.createWriteStream("./files/test.mp4"));
             // this.currentStation.stream = fs.createReadStream("./files/test.mp4");
-            this.currentStation.stream = ytdl("https://www.youtube.com/watch?v=Dx5qFachd3A");
+            // this.currentStation.stream = ytdl("https://www.youtube.com/watch?v=Dx5qFachd3A");
             
         } else if (this.currentStation.type !== RADIO_TYPES.SOMAFM && this.currentStation.type !== RADIO_TYPES.TRX && this.currentStation.type !== RADIO_TYPES.VIRGIN) return;
         return true;
