@@ -121,9 +121,9 @@ export class RadioPlayer {
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
             this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
-            console.log(this.resource.playStream.readableHighWaterMark);
-            console.log(this.resource.encoder.readableHighWaterMark);
-            console.log(this.resource.playStream.readableFlowing);
+            // console.log(this.resource.playStream.readableHighWaterMark);
+            // console.log(this.resource.encoder.readableHighWaterMark);
+            // console.log(this.resource.playStream.readableFlowing);
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();

@@ -11,21 +11,19 @@ export class Logger {
     
     private static print = (level: string, color: string, text: string): void =>
         console.log(`[\x1b[90m${new Date().toLocaleTimeString()}${RESET_COLOR}] [${color}${level}${RESET_COLOR}] ${text}`);
-        // console.log(`[\x1b[90m${new Date().toLocaleString()}${RESET_COLOR}] [${color}${level}${RESET_COLOR}] ${text}`);
 }
 
 export class ClassLogger {
     private className: string;
-
+    private isProd: boolean;
+    
     constructor(className: string){
         this.className = className;
-
-        if(process.env.ENVIROMENT == "P")
-            this.debug = null;
+        this.isProd = process.env.ENVIROMENT === "P";
     }
 
     private a = (): string => `[\x1b[1m${this.className}${RESET_COLOR}] `;
-    public debug =  (text: string): void => Logger.debug(this.a() + text);
+    public debug =  (text: string): void => { if(this.isProd) Logger.debug(this.a() + text); }
     public log =    (text: string): void => Logger.log(this.a() + text);
     public info =   (text: string): void => Logger.info(this.a() + text);
     public warn =   (text: string): void => Logger.warn(this.a() + text);
