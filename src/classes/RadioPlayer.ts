@@ -12,7 +12,7 @@ import { ClassLogger } from "./Logger";
 import { RADIO_TYPES } from "../globals/RadioTypes";
 import { stationsPool } from "../globals/StationsPool";
 
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 
 import { promisify } from "util";
 const wait = promisify(setTimeout);
@@ -121,9 +121,6 @@ export class RadioPlayer {
             if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
             this.player.play(this.resource);                        // Actually start the new stream on the player
             this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
-            // console.log(this.resource.playStream.readableHighWaterMark);
-            // console.log(this.resource.encoder.readableHighWaterMark);
-            // console.log(this.resource.playStream.readableFlowing);
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();
@@ -195,7 +192,9 @@ export class RadioPlayer {
      */
     public checkUUID = (UUID: number): RadioPlayer => (!UUID || this.UUID == UUID) ? this : undefined;
 
-    public checkPresence = (risp: Message | CommandInteraction | ButtonInteraction) => { }
+    public checkPresence = (risp: Message | CommandInteraction | ButtonInteraction) => {
+        // TODO
+    }
 
     public editCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
     public resendCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
@@ -203,15 +202,15 @@ export class RadioPlayer {
 
     /* ==== Private functions ======= */
     private closeInterval = () => { 
-        if (this.intervalId) {
-            this.currentStation.stream.push(null);
-            clearInterval(this.intervalId);
-            this.intervalId = undefined;
-        }
+        if (!this.intervalId) return;
+        
+        this.currentStation.stream.push(null);
+        clearInterval(this.intervalId);
+        this.intervalId = null;
     }
 
     private startNumber: number;
-    private aacGetter = async () => {
+    private pusherFreccia = async () => {
         await axios.get(`${this.currentStation.link}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
             logger.debug("Sending chunk " + this.startNumber++);
             this.currentStation.stream.push(chunk);
@@ -221,21 +220,18 @@ export class RadioPlayer {
     private setCurrentStation = async (stationName: string): Promise<boolean> => {
         // Check whether the station exists or not
         stationName = stationName?.toLowerCase();
-        if (!stationsPool.hasOwnProperty(stationName)) return;
+        if (!stationsPool.hasOwnProperty(stationName) || this.currentStation?.name.toLowerCase() === stationName) return;
         
         // If station exists, close the old stream and instance the new station
         this.closeInterval();
         this.currentStation = stationsPool[stationName];
 
         if (this.currentStation.type === RADIO_TYPES.FRECCIA) {
-            // Find start number, create Readable stream
-            this.startNumber = await axios.get(this.currentStation.link + "chunklist_b128000.m3u8").then(res => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
+            // Get start number, create readable stream, initiate chunk pushing with an interval of 2.75s
+            this.startNumber = await axios.get(this.currentStation.link + "chunklist_b128000.m3u8").then((res: AxiosResponse<any>) => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
             this.currentStation.stream = new Readable({ read() { } });
-
-            // Remove old interval fn (if any), and start pushging new chunks to the stream
-            this.intervalId = setInterval(this.aacGetter, 2750);
-
-        } else if (this.currentStation.type !== RADIO_TYPES.SOMAFM && this.currentStation.type !== RADIO_TYPES.TRX && this.currentStation.type !== RADIO_TYPES.VIRGIN) return;
+            this.intervalId = setInterval(this.pusherFreccia, 2750);
+        } else if (this.currentStation.type !== RADIO_TYPES.SINGLE_LINK) return;
         return true;
     }
 

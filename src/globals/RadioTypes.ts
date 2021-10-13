@@ -1,10 +1,5 @@
-// Future use
-
 export const RADIO_TYPES = {
     TEST: 0,
-
-    SOMAFM: 1,
-    TRX: 2,
-    VIRGIN: 3,
-    FRECCIA: 4
+    SINGLE_LINK: 1,
+    FRECCIA: 2
 };
