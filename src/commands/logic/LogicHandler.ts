@@ -62,10 +62,13 @@ const logicHandler: Commands<Command> = {
         name: "stations", category: "Radio", description: "Lists all the available stations that can be played with the command 'station'", aliases: "l, list",
         fn: (): string => {
             const stationNames = Object.values(stationsPool).map(o => o.name);
-            
             let text = "```swift\n"
-            for(let i = 0; i < stationNames.length; i+= 3)
+            for(let i = 0; i < stationNames.length; i += 3) {
+                console.log(i);
                 text += fill15(stationNames[i] ?? "") + " " + fill15(stationNames[i+1] ?? "") + " " + fill15(stationNames[i+2] ?? "") + "\n";
+                console.log(i);
+            }
+            console.log(text);
             return text + "```";
         }
     },
