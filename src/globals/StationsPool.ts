@@ -13,11 +13,11 @@ export const stationsPool: StationsPool<Station> = {
     freccia: {          name: "Freccia",            type: RADIO_TYPES.STREAM,   padding: 1,     interval: 2750, m3u8: "chunklist_b128000.m3u8", aac: "media-u1nu3maeq_b128000_",    link: "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/",            thumbnail: "https://pbs.twimg.com/profile_images/791580901260001280/CDH3kQ_N.jpg" },
     
     // SINGLE_LINK STATIONS
-    rainwaveall: {      name: "RainWave",           type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/all.ogg?1:IvW9vCRcHv",         thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
-    rainwavegame: {     name: "RWGameOSTs",         type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/game.ogg?1:IvW9vCRcHv",        thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
-    rainwavechiptune: { name: "RWChiptune",         type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/chiptune.ogg?1:IvW9vCRcHv",    thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
-    rainwaveremixes: {  name: "RWGameRemixes",      type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/ocremix.ogg?1:IvW9vCRcHv",     thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
-    rainwavecovers: {   name: "RWGameCovers",       type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/covers.ogg?1:IvW9vCRcHv",      thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
+    rainwave: {         name: "RainWave",           type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/all.ogg?1:IvW9vCRcHv",         thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
+    rwgameosts: {       name: "RWGameOSTs",         type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/game.ogg?1:IvW9vCRcHv",        thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
+    rwchiptune: {       name: "RWChiptune",         type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/chiptune.ogg?1:IvW9vCRcHv",    thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
+    rwgameremixes: {    name: "RWGameRemixes",      type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/ocremix.ogg?1:IvW9vCRcHv",     thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
+    rwgamecovers: {     name: "RWGameCovers",       type: RADIO_TYPES.SINGLE_LINK,  link: "https://relay.rainwave.cc/covers.ogg?1:IvW9vCRcHv",      thumbnail: "https://www.radio.it/images/broadcasts/f3/ff/114012/1/c300.png" },
     
     retro: {            name: "Retro",              type: RADIO_TYPES.SINGLE_LINK,  link: "http://gyusyabu.ddo.jp:8000/;",                          thumbnail: "https://images.unsplash.com/photo-1587582140428-38110de9f434?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1171&q=80" },
     kanazawa: {         name: "Kanazawa",           type: RADIO_TYPES.SINGLE_LINK,  link: "https://musicbird.leanstream.co/JCB061-MP3",             thumbnail: "http://cdn-radiotime-logos.tunein.com/s10567q.png" },
