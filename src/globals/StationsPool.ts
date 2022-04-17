@@ -8,7 +8,7 @@ interface StationsPool<Station> { [stationName: string]: Station };
 // Hard-coded radios
 export const stationsPool: StationsPool<Station> = {
     // STREAM STATIONS
-    rtl: {              name: "RTL 102.5",          type: RADIO_TYPES.STREAM,   padding: 11,    interval: 3000, m3u8: "chunklist_b128000.m3u8", aac: "media-uidahpith_b128000_",    link: "https://streamcdnb8-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/audiostream/S97044836/tbbP8T1ZRPBL/",     thumbnail: "https://upload.wikimedia.org/wikipedia/it/thumb/2/25/RTL_102_5_logo.svg/1200px-RTL_102_5_logo.svg.png" },
+    rtl: {              name: "RTL",                type: RADIO_TYPES.STREAM,   padding: 11,    interval: 3000, m3u8: "chunklist_b128000.m3u8", aac: "media-uidahpith_b128000_",    link: "https://streamcdnb8-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/audiostream/S97044836/tbbP8T1ZRPBL/",     thumbnail: "https://upload.wikimedia.org/wikipedia/it/thumb/2/25/RTL_102_5_logo.svg/1200px-RTL_102_5_logo.svg.png" },
     discoradio: {       name: "DiscoRadio",         type: RADIO_TYPES.STREAM,   padding: 1,     interval: 8000, m3u8: "chunklist.m3u8",         aac: "media_",                      link: "https://stream.discoradio.radio/audio/disco.stream_aac64/",                                              thumbnail: "https://d3ft9t2yx44rgc.cloudfront.net/wp-content/uploads/2018/10/logoDR%402x.png" },
     freccia: {          name: "Freccia",            type: RADIO_TYPES.STREAM,   padding: 1,     interval: 2750, m3u8: "chunklist_b128000.m3u8", aac: "media-u1nu3maeq_b128000_",    link: "https://streamcdnm23-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/",            thumbnail: "https://pbs.twimg.com/profile_images/791580901260001280/CDH3kQ_N.jpg" },
     

@@ -63,12 +63,8 @@ const logicHandler: Commands<Command> = {
         fn: (): string => {
             const stationNames = Object.values(stationsPool).map(o => o.name);
             let text = "```swift\n"
-            for(let i = 0; i < stationNames.length; i += 3) {
-                console.log(i);
+            for(let i = 0; i < stationNames.length; i += 3)
                 text += fill15(stationNames[i] ?? "") + " " + fill15(stationNames[i+1] ?? "") + " " + fill15(stationNames[i+2] ?? "") + "\n";
-                console.log(i);
-            }
-            console.log(text);
             return text + "```";
         }
     },
@@ -77,9 +73,7 @@ const logicHandler: Commands<Command> = {
         name: "station", category: "Radio", description: "LeottaFM will enter your voice channel and play your favourite radio station", aliases: "s",
         fn: (risp: Message | CommandInteraction | ButtonInteraction, stationName: string, UUID: number): void => {
             getOrCreateRadioPlayer(risp.guildId)?.checkUUID(UUID)?.playStation(risp, stationName)
-            .then(success => {
-                if(!success) deleteRadioPlayer(risp.guildId);
-            })
+            .then(success => { if(!success) deleteRadioPlayer(risp.guildId); })
         }
     },
     "fuckoff, clear, stop, l, leave": {
