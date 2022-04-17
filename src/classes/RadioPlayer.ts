@@ -1,7 +1,6 @@
 /* ==== Imports =========================================================================================================================== */
-import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu, StageChannel, TextBasedChannels, VoiceChannel } from "discord.js";
-import { AudioPlayer, AudioResource, createAudioPlayer, createAudioResource, entersState, joinVoiceChannel, StreamType, VoiceConnection, VoiceConnectionDisconnectReason, VoiceConnectionStatus } from "@discordjs/voice";
-
+import { ButtonInteraction, ColorResolvable, CommandInteraction, GuildMember, Message, MessageActionRow, MessageButton, MessageEmbed, MessageSelectMenu, StageChannel, TextBasedChannel, VoiceChannel } from "discord.js";
+import { AudioPlayer, AudioResource, createAudioPlayer, createAudioResource, entersState, joinVoiceChannel, PlayerSubscription, StreamType, VoiceConnection, VoiceConnectionDisconnectReason, VoiceConnectionStatus } from "@discordjs/voice";
 import { Station } from "../interfaces/Station";
 
 import { Readable } from 'stream';
@@ -15,6 +14,7 @@ import { stationsPool } from "../globals/StationsPool";
 import axios, { AxiosResponse } from "axios";
 
 import { promisify } from "util";
+import { LeottaFMIstance } from "..";
 const wait = promisify(setTimeout);
 
 const logger: ClassLogger = new ClassLogger("RadioPlayer");
@@ -31,11 +31,12 @@ export class RadioPlayer {
     private connection: VoiceConnection;                                // Voice connection events handler
     private player: AudioPlayer;                                        // Music player
     private resource: AudioResource<null>;                              // Resource - stream that is being played
+    private subscription: PlayerSubscription;
 
     private intervalId: NodeJS.Timer;
 
     /* ==== DynamicMessages ==== */
-    private textChannel: TextBasedChannels;                             // Where to log / send all the messages
+    private textChannel: TextBasedChannel;                             // Where to log / send all the messages
     private currentRadioDynamicMessage: DynamicMessage;                 // main player message handler
 
     /* ==== Public functions ======== */
@@ -67,7 +68,6 @@ export class RadioPlayer {
      */
     public playStation = async (risp: Message | CommandInteraction | ButtonInteraction, stationName: string): Promise<boolean> => {
         logger.info("Calling playStation");
-
         if (!this.checkVoice(risp)) return this.isPlaying();                    // If there's something playing, don't delete the RadioPlayer
 
         if (!this.textChannel) this.updateTextChannel(risp.channel);            // Update textChannel
@@ -82,11 +82,10 @@ export class RadioPlayer {
 
         if (!this.connection || this.connection.state.status == "destroyed") {
             this.connection = joinVoiceChannel({ channelId: this.voiceChannel.id, guildId: this.voiceChannel.guildId, adapterCreator: this.voiceChannel.guild.voiceAdapterCreator });
+            this.subscription = this.connection.subscribe(this.player);     // Join together the connection and the player... More connections can subscribe to one audioPlayer
 
             // Listeners
-            this.connection.on("error", () => {
-                logger.warn("Connection error");
-            })
+            this.connection.on("error", () => logger.warn("Connection error"))
             logger.info("Listening on connection event 'error'");
 
             this.connection.on("stateChange", async (_, newState) => {
@@ -116,11 +115,11 @@ export class RadioPlayer {
         }
 
         try {// Create AudioResource with url/stream retrieved
+            if(this.currentStation.type !== RADIO_TYPES.STREAM) this.currentStation.stream = (await axios.get(this.currentStation.link, { responseType: "stream" })).data;
             this.resource = createAudioResource(this.currentStation.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
-            this.setVolume();                                       // Set the volume of the new stream
-            if (this.isPlaying()) this.player.stop();               // Stop currently playing station, if any
-            this.player.play(this.resource);                        // Actually start the new stream on the player
-            this.connection.subscribe(this.player);                 // Apply the player to the connection (??)
+            this.setVolume();                                           // Set the volume of the new stream
+            if (this.isPlaying()) this.player.stop();                   // Stop currently playing station, if any
+            this.player.play(this.resource);                            // Actually start the new stream on the player
         } catch (e) {
             logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();
@@ -143,9 +142,9 @@ export class RadioPlayer {
 
     /**
      * Binds the bot log messages to a new textChannel, sending again the dynamic messages.
-     * @param {TextBasedChannels} textChannel
+     * @param {TextBasedChannel} textChannel
      */
-    public updateTextChannel = (textChannel: TextBasedChannels): void => {
+    public updateTextChannel = (textChannel: TextBasedChannel): void => {
         this.textChannel = textChannel;
         this.currentRadioDynamicMessage.updateTextChannel(textChannel).resend();
     }
@@ -173,8 +172,11 @@ export class RadioPlayer {
 
     public reset = () => {
         this.closeInterval();
-        this.player.stop();
+        this.player?.stop();
         this.connection?.destroy();
+
+        this.player = createAudioPlayer();
+        this.connection = undefined;
         // this.sub?.connection?.destroy();
         this.currentRadioDynamicMessage?.delete();
 
@@ -196,8 +198,8 @@ export class RadioPlayer {
         // TODO
     }
 
-    public editCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
-    public resendCurrentRadioDynamicMessage = async (): Promise<Message> => await this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
+    public editCurrentRadioDynamicMessage = async (): Promise<Message> => this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).edit();
+    public resendCurrentRadioDynamicMessage = async (): Promise<Message> => this.currentRadioDynamicMessage.updateContent(this.getCurrentRadioContent()).resend();
 
 
     /* ==== Private functions ======= */
@@ -210,8 +212,8 @@ export class RadioPlayer {
     }
 
     private startNumber: number;
-    private pusherFreccia = async () => {
-        await axios.get(`${this.currentStation.link}media-u1nu3maeq_b128000_${this.startNumber}.aac`, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
+    private pusher = async () => {
+        await axios.get(this.currentStation.link + this.currentStation.aac + this.startNumber + ".aac", { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
             logger.debug("Sending chunk " + this.startNumber++);
             this.currentStation.stream.push(chunk);
         }).catch(e => logger.error(`Stream error on chunk ${this.startNumber - 1}: ${e.message}`));
@@ -221,16 +223,19 @@ export class RadioPlayer {
         // Check whether the station exists or not
         stationName = stationName?.toLowerCase();
         if (!stationsPool.hasOwnProperty(stationName) || this.currentStation?.name.toLowerCase() === stationName) return;
-        
+
         // If station exists, close the old stream and instance the new station
-        this.closeInterval();
+        if (this.currentStation?.type === RADIO_TYPES.STREAM) this.closeInterval();
+
         this.currentStation = stationsPool[stationName];
 
-        if (this.currentStation.type === RADIO_TYPES.FRECCIA) {
+        if (this.currentStation.type === RADIO_TYPES.STREAM) {
             // Get start number, create readable stream, initiate chunk pushing with an interval of 2.75s
-            this.startNumber = await axios.get(this.currentStation.link + "chunklist_b128000.m3u8").then((res: AxiosResponse<any>) => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
+            this.startNumber = await axios.get(this.currentStation.link + this.currentStation.m3u8).then((res: AxiosResponse<any>) => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
             this.currentStation.stream = new Readable({ read() { } });
-            this.intervalId = setInterval(this.pusherFreccia, 2750);
+            this.startNumber -= this.currentStation.padding;
+            while(this.currentStation.padding-- > 0) await this.pusher();
+            this.intervalId = setInterval(this.pusher, this.currentStation.interval);
         } else if (this.currentStation.type !== RADIO_TYPES.SINGLE_LINK) return;
         return true;
     }

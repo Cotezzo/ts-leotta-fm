@@ -1,5 +1,5 @@
 /* ==== Imports =========================================================================================================================== */
-import { Message, TextBasedChannels } from "discord.js";
+import { Message, TextBasedChannel } from "discord.js";
 import { ClassLogger, Logger } from "./Logger";
 
 const logger = new ClassLogger("DynamicMessage");
@@ -8,7 +8,7 @@ const logger = new ClassLogger("DynamicMessage");
 export class DynamicMessage {
     message: Message;
     messageContent: any;
-    textChannel: TextBasedChannels;
+    textChannel: TextBasedChannel;
     UUID?: number;
 
     constructor(UUID?: number){
@@ -18,7 +18,7 @@ export class DynamicMessage {
 
     check = (UUID?: number): DynamicMessage => (!UUID || this.UUID == UUID) ? this : undefined;
     
-    updateTextChannel = (textChannel: TextBasedChannels): DynamicMessage => {
+    updateTextChannel = (textChannel: TextBasedChannel): DynamicMessage => {
         this.textChannel = textChannel;
         return this;
     }
@@ -54,7 +54,7 @@ export class DynamicMessage {
             Logger.error("Edit error: " + e.message);
         }
 
-        return await this.create();
+        return this.create();
     }
 
     /**
@@ -75,11 +75,10 @@ export class DynamicMessage {
     resend = async (): Promise<Message> => {
         try{
             await this.delete();
-            // if(this.message?.deletable) await this.message.delete();
         }catch(e){
             Logger.error("Resend error: " + e.message);
         }
 
-        return await this.create();
+        return this.create();
     }
 }
