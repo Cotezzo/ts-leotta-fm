@@ -16,10 +16,10 @@ import axios, { AxiosResponse } from "axios";
 import { promisify } from "util";
 const wait = promisify(setTimeout);
 
-const logger: ClassLogger = new ClassLogger("RadioPlayer");
-
 /* ==== Class ============================================================================================================================= */
 export class RadioPlayer {
+    private logger: ClassLogger;
+
     /* ==== MetaData =========== */
     private UUID: number;                                               // Unique indentifier user to identify ButtonInteractions
     private volume: number;                                             // Float
@@ -52,10 +52,12 @@ export class RadioPlayer {
         this.currentRadioDynamicMessage = new DynamicMessage(this.UUID);
 
         // Initialize audioPlayer events for logging purposes
-        this.player.on("stateChange", (_, newState) => logger.info("AudioPlayer state changed to " + newState.status));
-        this.player.on("error", (e) => logger.error("AudioPlayer error: " + e.message));    // TODO: if error, try to reconnect
+        this.player.on("stateChange", (_, newState) => this.logger.debug("AudioPlayer state changed to " + newState.status));
+        this.player.on("error", (e) => this.logger.error("AudioPlayer error: " + e.message));    // TODO: if error, try to reconnect
 
-        logger.info("New instance created and listening on AudioPlayer events");
+        // Initialize logger with session UUID
+        this.logger = new ClassLogger("RadioPlayer " + this.UUID);
+        this.logger.info(`New instance created - Listening to AudioPlayer events`);
     }
 
     /* ==== Public functions ============================================================================ */
@@ -120,6 +122,8 @@ export class RadioPlayer {
      * If the user is not in a voice channel, the bot will ignore the request.
      */
     public playStation = async (risp: Message | CommandInteraction | ButtonInteraction, stationName: string): Promise<boolean> => {
+        this.logger.info(`PlayStation started [stationName: ${stationName}]`);
+
         // If there's something playing, exit - don't delete the RadioPlayer
         if (!this.checkVoice(risp)) return this.isPlaying();
 
@@ -139,37 +143,36 @@ export class RadioPlayer {
             this.subscription = this.connection.subscribe(this.player);     // Join together the connection and the player... More connections can subscribe to one audioPlayer
 
             // Initialize connection events for logging and reconnection purposes
-            this.connection.on("error", () => logger.warn("Connection error"))
+            this.connection.on("error", () => this.logger.warn("Connection error"))
             this.connection.on("stateChange", async (_, newState) => {
-                logger.info("Connection state changed to " + newState.status);
+                this.logger.debug("Connection state changed to " + newState.status);
                 // Handle disconnection
                 if (newState.status === VoiceConnectionStatus.Disconnected) {
                     if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
                         try {
-                            await entersState(this.connection, VoiceConnectionStatus.Connecting, 5_000);                // Probably moved voice channel
+                            await entersState(this.connection, VoiceConnectionStatus.Connecting, 5_000);                    // Probably moved voice channel
                         } catch {
-                            this.connection.destroy();                                                                  // Probably removed from voice channel
+                            this.connection.destroy();                                                                      // Probably removed from voice channel
                         }
-                    } else if (this.connection.rejoinAttempts < 5) {    		                                        // Disconnect is recoverable, and we have <5 repeated attempts so we will reconnect.
+                    } else if (this.connection.rejoinAttempts < 5) {    		                                            // Disconnect is recoverable, and we have <5 repeated attempts so we will reconnect.
                         await wait((this.connection.rejoinAttempts + 1) * 5_000);
                         this.connection.rejoin();
-                    } else this.connection.destroy();                                                                   // Disconnect may be recoverable, but we have no more remaining attempts - destroy.			
-                } else if (newState.status === VoiceConnectionStatus.Destroyed) logger.warn("Connection destroyed");    // Once destroyed, stop the subscription
+                    } else this.connection.destroy();                                                                       // Disconnect may be recoverable, but we have no more remaining attempts - destroy.			
+                } else if (newState.status === VoiceConnectionStatus.Destroyed) this.logger.warn("Connection destroyed");   // Once destroyed, stop the subscription
             });
+            this.logger.info("New connection established - Listening to connection events");
         }
 
         try {
             // Creates the readable stream and uses it to create the new audioResource and sets the volume
-            await this.createReadableStream();
-            console.log(this.stream);
-            this.resource = createAudioResource(this.stream, { inlineVolume: true, inputType: StreamType.Arbitrary });
+            this.resource = createAudioResource(await this.createReadableStream(), { inlineVolume: true, inputType: StreamType.Arbitrary });
             this.setVolume();
 
             // Stop currently playing station, if any, and starts the new stream on the player
             if (this.isPlaying()) this.player.stop();
             this.player.play(this.resource);
         } catch (e) {
-            logger.error("Failed to create and play AudioResource: " + e.message);
+            this.logger.error("Failed to create and play AudioResource: " + e.message);
             this.reset();
             return;
         }
@@ -178,10 +181,10 @@ export class RadioPlayer {
         this.textChannel.messages.fetch({ limit: 1 }).then(fetchedMessages => {
             (fetchedMessages.first().id != this.currentRadioDynamicMessage.message?.id)
                 ? this.resendCurrentRadioDynamicMessage()           // If the last message is another one, resend currentRadio
-                : this.editCurrentRadioDynamicMessage();            // Else, update it                                                                 // Else, edit it
+                : this.editCurrentRadioDynamicMessage();            // Else, update it
         });
 
-        logger.info("Station changed successfully");
+        this.logger.info("Station changed successfully");
         return true;
     }
 
@@ -209,6 +212,7 @@ export class RadioPlayer {
         if (this.currentStation?.type === RADIO_TYPES.STREAM) this.closeInterval();
 
         this.currentStation = stationsPool[stationName];
+        this.logger.debug("CurrentStation successfully set to " + this.currentStation.name);
         return true;
     }
 
@@ -246,8 +250,8 @@ export class RadioPlayer {
             // Push the retrieved chunk in the Readable stream and increment the counter
             this.stream.push(chunk);
             this.chunkId++;
-            logger.debug(`Chunk ${this.chunkId} pushed to the Readable Stream`);
-        }).catch(e => logger.error(`Error pushing chunk ${this.chunkId - 1}: ${e.message}`));
+            this.logger.debug(`Chunk ${this.chunkId} pushed`);
+        }).catch(e => this.logger.error(`Error pushing chunk ${this.chunkId - 1}: ${e.message}`));
     }
 
     /** Kill the chunkPolling if the intervalId is not null and ends the Readable stream with a null push */
