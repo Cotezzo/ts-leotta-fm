@@ -10,5 +10,7 @@ export interface Station {
     link?: string;
     m3u8?: string;
     aac?: string;
+    dynamicAac?: boolean;
+    dynamicAacValue?: string;
     padding?: number;
 }

@@ -227,7 +227,10 @@ export class RadioPlayer {
         // Se la stazione è di tipo STREAM, creo una Readable stream e avvio un timer che recupera un chunk di info ogni tot ms
         else if (this.currentStation.type === RADIO_TYPES.STREAM) {
             // Retrieve the first chunk id from the latest m3u8 file
-            this.chunkId = await axios.get(this.currentStation.link + this.currentStation.m3u8).then((res: AxiosResponse<any>) => res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0]);
+            this.chunkId = await axios.get(this.currentStation.link + this.currentStation.m3u8).then((res: AxiosResponse<any>) => {
+                if(this.currentStation.dynamicAac)  this.currentStation.dynamicAacValue = this.currentStation.aac.replace("{}", res.data.split("media-", 2)[1].split("_", 1)[0]);
+                return res.data.split("#EXT-X-MEDIA-SEQUENCE:", 2)[1].split("\n", 1)[0];
+            });
             
             // Initialize the Readable stream and implement the read method
             this.stream = new Readable({ read() { /** Do nothing */ } });
@@ -246,7 +249,9 @@ export class RadioPlayer {
 
     /** Retrieve a new chunk for the Readable stream from the station site */
     private chunkPolling = async () => {
-        await axios.get(this.currentStation.link + this.currentStation.aac + this.chunkId + ".aac", { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
+        const url = this.currentStation.link + (this.currentStation.dynamicAac ? this.currentStation.dynamicAacValue : this.currentStation.aac) + this.chunkId + ".aac";
+        console.log(url);
+        await axios.get(url, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
             // Push the retrieved chunk in the Readable stream and increment the counter
             this.stream.push(chunk);
             this.chunkId++;
