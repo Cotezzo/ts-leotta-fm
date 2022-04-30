@@ -19,11 +19,11 @@ export class ClassLogger {
     
     constructor(className: string){
         this.className = className;
-        this.isProd = process.env.ENVIROMENT === "P";
+        this.isProd = false; //process.env.ENVIROMENT === "P";
     }
 
     private a = (): string => `[\x1b[1m${this.className}${RESET_COLOR}] `;
-    public debug =  (text: string): void => { if(this.isProd) Logger.debug(this.a() + text); }
+    public debug =  (text: string): void => { if(!this.isProd) Logger.debug(this.a() + text); }
     public log =    (text: string): void => Logger.log(this.a() + text);
     public info =   (text: string): void => Logger.info(this.a() + text);
     public warn =   (text: string): void => Logger.warn(this.a() + text);

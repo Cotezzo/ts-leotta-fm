@@ -250,10 +250,9 @@ export class RadioPlayer {
     /** Retrieve a new chunk for the Readable stream from the station site */
     private chunkPolling = async () => {
         const url = this.currentStation.link + (this.currentStation.dynamicAac ? this.currentStation.dynamicAacValue : this.currentStation.aac) + this.chunkId + ".aac";
-        console.log(url);
         await axios.get(url, { responseType: "arraybuffer" }).then(r => r.data).then(chunk => {
             // Push the retrieved chunk in the Readable stream and increment the counter
-            this.stream.push(chunk);
+            if(this.stream) this.stream.push(chunk);
             this.chunkId++;
             this.logger.debug(`Chunk ${this.chunkId} pushed`);
         }).catch(e => this.logger.error(`Error pushing chunk ${this.chunkId - 1}: ${e.message}`));
