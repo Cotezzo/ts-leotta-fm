@@ -29,6 +29,8 @@ export const stationsPool: StationsPool<Station> = {
 
     trx: {              name: "TRX",                type: RADIO_TYPES.SINGLE_LINK,  link: "https://trx.fluidstream.eu/trx.mp3",                         thumbnail: "https://www.dailyonline.it/application/files/6715/7583/8347/TRX_Radio.png" },
 
+    ytpmv: {            name: "YTPMV",              type: RADIO_TYPES.SINGLE_LINK,  link: "https://radio.mmaker.moe/listen/ytpmv/hq.mp3",               thumbnail: "https://i.ytimg.com/vi/AEji3xiLHcI/maxresdefault.jpg" },
+
     virgin: {           name: "Virgin",             type: RADIO_TYPES.SINGLE_LINK,  link: "https://icy.unitedradio.it/Virgin.mp3",                      thumbnail: "https://www.virginradio.it/resizer/-1/-1/true/Webradio-Virgin-2020-VirginRadioOnAir-1588257500754.png--.png" },
     classicrock: {      name: "ClassicRock",        type: RADIO_TYPES.SINGLE_LINK,  link: "https://icy.unitedradio.it/VirginRockClassics.mp3",          thumbnail: "https://www.virginradio.it/resizer/-1/-1/true/Webradio-Virgin-2020-ClassicRock-1588062884404.png--.png" },
     rockhits: {         name: "RockHits",           type: RADIO_TYPES.SINGLE_LINK,  link: "https://icy.unitedradio.it/VirginRockHits.mp3",              thumbnail: "https://www.virginradio.it/resizer/-1/-1/true/Webradio-Virgin-2020-RockHits-1588062672845.png--.png" },
